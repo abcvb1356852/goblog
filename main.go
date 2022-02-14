@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var router = mux.NewRouter()
@@ -75,6 +76,11 @@ func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
 `
 	storeURL, _ := router.Get("articles.store").URL()
 	fmt.Fprintf(w, html, storeURL)
+}
+
+
+func init() {
+    sql.Register("mysql", &MySQLDriver{})
 }
 
 func main() {
