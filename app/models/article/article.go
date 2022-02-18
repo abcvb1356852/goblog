@@ -1,17 +1,18 @@
 package article
 
 import (
+	"goblog/app/models"
 	"goblog/pkg/logger"
 	"goblog/pkg/model"
 	"goblog/pkg/route"
 	"goblog/pkg/types"
-	"log"
 	"strconv"
 )
 
 // Article 文章模型
 type Article struct {
-	ID    uint64
+	models.BaseModel
+
 	Title string
 	Body  string
 }
@@ -38,7 +39,6 @@ func GetAll() ([]Article, error) {
 
 // Link 方法用来生成文章链接
 func (article Article) Link() string {
-	log.Printf(article.Title)
 	return route.Name2URL("articles.show", "id", strconv.FormatUint(article.ID, 10))
 }
 
