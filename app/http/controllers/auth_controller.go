@@ -29,7 +29,6 @@ func (*AuthController) DoRegister(w http.ResponseWriter, r *http.Request) {
 
 	// 2. 表单规则
 	errs := requests.ValidateRegistrationForm(_user)
-
 	if len(errs) > 0 {
 		// 3. 表单不通过 —— 重新显示表单
 		view.RenderSimple(w, view.D{
