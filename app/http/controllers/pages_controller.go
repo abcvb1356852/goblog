@@ -23,10 +23,9 @@ type aboutData struct {
 func (*PagesController) About(w http.ResponseWriter, r *http.Request) {
 	body := "此博客是用以记录编程笔记，如您有反馈或建议，请联系 " +
 		"<a href=\"mailto:summer@example.com\">summer@example.com</a>"
-	view.Render(w, aboutData{
-		Body: body,
+	view.Render(w, view.D{
+		"Body": body,
 	}, "articles.about")
-
 }
 
 // NotFound 404 页面
