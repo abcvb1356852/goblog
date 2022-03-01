@@ -2,6 +2,7 @@ package article
 
 import (
 	"goblog/app/models"
+	"goblog/app/models/user"
 	"goblog/pkg/logger"
 	"goblog/pkg/model"
 	"goblog/pkg/route"
@@ -13,15 +14,17 @@ import (
 type Article struct {
 	models.BaseModel
 
-	Title string `gorm:"type:varchar(255);not null;" valid:"title"`
-	Body  string `gorm:"type:longtext;not null;" valid:"body"`
+	Title  string `gorm:"type:varchar(255);not null;" valid:"title"`
+	Body   string `gorm:"type:longtext;not null;" valid:"body"`
+	UserId uint64 `gorm:"not null;index"`
+	User   user.User
 }
 
 // Get 通过 ID 获取文章
 func Get(idstr string) (Article, error) {
 	var article Article
 	id := types.StringToUint64(idstr)
-	if err := model.DB.First(&article, id).Error; err != nil {
+	if err := model.DB.Preload("User").First(&article, id).Error; err != nil {
 		return article, err
 	}
 
@@ -31,7 +34,7 @@ func Get(idstr string) (Article, error) {
 // GetAll 获取全部文章
 func GetAll() ([]Article, error) {
 	var articles []Article
-	if err := model.DB.Find(&articles).Error; err != nil {
+	if err := model.DB.Preload("User").Find(&articles).Error; err != nil {
 		return articles, err
 	}
 	return articles, nil
@@ -73,4 +76,9 @@ func (article *Article) Delete() (rowsAffected int64, err error) {
 	}
 
 	return result.RowsAffected, nil
+}
+
+// CreatedAtDate 创建日期
+func (article Article) CreatedAtDate() string {
+	return article.CreatedAt.Format("2006-01-02")
 }
