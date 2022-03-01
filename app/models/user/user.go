@@ -58,3 +58,12 @@ func (user *User) ComparePassword(_password string) bool {
 func (user User) Link() string {
 	return route.Name2URL("users.show", "id", user.GetStringID())
 }
+
+// All 获取所有用户数据
+func All() ([]User, error) {
+	var users []User
+	if err := model.DB.Find(&users).Error; err != nil {
+		return users, err
+	}
+	return users, nil
+}
