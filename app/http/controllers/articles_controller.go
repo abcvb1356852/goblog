@@ -5,21 +5,21 @@ import (
 	"goblog/app/models/article"
 	"goblog/app/policies"
 	"goblog/app/requests"
+	"goblog/pkg/auth"
 	"goblog/pkg/flash"
 	"goblog/pkg/logger"
 	"goblog/pkg/route"
 	"goblog/pkg/view"
 	"net/http"
-
-	"gorm.io/gorm"
 )
 
 // ArticlesController 文章相关页面
 type ArticlesController struct {
+	BaseController
 }
 
 // Show 文章详情页面
-func (*ArticlesController) Show(w http.ResponseWriter, r *http.Request) {
+func (ac *ArticlesController) Show(w http.ResponseWriter, r *http.Request) {
 	// 1. 获取 URL 参数
 	id := route.GetRouteVariable("id", r)
 
@@ -27,51 +27,8 @@ func (*ArticlesController) Show(w http.ResponseWriter, r *http.Request) {
 	article, err := article.Get(id)
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// 3.1 数据未找到
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(w, "404 文章未找到")
-		} else {
-			// 3.2 数据库错误
-			logger.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "500 服务器内部错误")
-		}
+		ac.ResponseForSQLError(w, err)
 	} else {
-		// 4.读取成功 显示文章
-		/* 		tmpl, err := template.ParseFiles("./resources/views/articles/show.gohtml") */
-		/* 		tmpl, err := template.New("show.gohtml").Funcs(template.FuncMap{
-		   			"RouteName2URL":  route.Name2URL,
-		   			"Uint64ToString": types.Uint64ToString,
-		   		}).ParseFiles("./resources/views/articles/show.gohtml")
-
-		   		if err != nil {
-		   			logger.LogError(err)
-		   		}
-
-		   		err = tmpl.Execute(w, article)
-		   		logger.LogError(err) */
-
-		// 4.0 设置模板相对路径
-		/* 		viewDir := "resources/views"
-
-		   		// 4.1 所有布局模板文件 Slice
-		   		files, err := filepath.Glob(viewDir + "/layouts/*.gohtml")
-		   		logger.LogError(err)
-
-		   		// 4.2 在 Slice 里新增我们的目标文件
-		   		newFiles := append(files, viewDir+"/articles/show.gohtml")
-
-		   		// 4.3 解析模板文件
-		   		tmpl, err := template.New("show.gohtml").
-		   			Funcs(template.FuncMap{
-		   				"RouteName2URL":  route.Name2URL,
-		   			}).ParseFiles(newFiles...)
-		   		logger.LogError(err)
-
-		   		// 4.4 渲染模板，将所有文章的数据传输进去
-		   		err = tmpl.ExecuteTemplate(w, "app", article)
-		   		logger.LogError(err) */
 		// ---  4. 读取成功，显示文章 ---
 		view.Render(w, view.D{
 			"Article":          article,
@@ -81,43 +38,13 @@ func (*ArticlesController) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 // Index 文章列表页
-func (*ArticlesController) Index(w http.ResponseWriter, r *http.Request) {
+func (ac *ArticlesController) Index(w http.ResponseWriter, r *http.Request) {
 	// 1. 获取结果集
 	articles, err := article.GetAll()
 
 	if err != nil {
-		// 数据库错误
-		logger.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "500 服务器内部错误")
+		ac.ResponseForSQLError(w, err)
 	} else {
-		// 2. 加载模板
-		/* 		tmpl, err := template.ParseFiles("./resources/views/articles/index.gohtml")
-		   		if err != nil {
-		   			logger.LogError(err)
-		   		}
-
-		   		// 3. 渲染模板，将所有文章的数据传输进去
-		   		err = tmpl.Execute(w, articles)
-		   		logger.LogError(err) */
-
-		// 2.0 设置模板相对路径
-		/* 		viewDir := "resources/views"
-
-		   		// 2.1 所有布局模板文件 Slice
-		   		files, err := filepath.Glob(viewDir + "/layouts/*.gohtml")
-		   		logger.LogError(err)
-
-		   		// 2.2 在 Slice 里新增我们的目标文件
-		   		newFiles := append(files, viewDir+"/articles/index.gohtml")
-
-		   		// 2.3 解析模板文件
-		   		tmpl, err := template.ParseFiles(newFiles...)
-		   		logger.LogError(err)
-
-		   		// 2.4 渲染模板，将所有文章的数据传输进去
-		   		err = tmpl.ExecuteTemplate(w, "app", articles)
-		   		logger.LogError(err) */
 		// ---  2. 加载模板 ---
 		view.Render(w, view.D{
 			"Articles": articles,
@@ -134,9 +61,11 @@ func (*ArticlesController) Create(w http.ResponseWriter, r *http.Request) {
 func (*ArticlesController) Store(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 初始化数据
+	currentUser := auth.User()
 	_article := article.Article{
-		Title: r.PostFormValue("title"),
-		Body:  r.PostFormValue("body"),
+		Title:  r.PostFormValue("title"),
+		Body:   r.PostFormValue("body"),
+		UserId: currentUser.ID,
 	}
 
 	// 2. 表单验证
@@ -162,7 +91,7 @@ func (*ArticlesController) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 // Edit 文章更新页面
-func (*ArticlesController) Edit(w http.ResponseWriter, r *http.Request) {
+func (ac *ArticlesController) Edit(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 获取 URL 参数
 	id := route.GetRouteVariable("id", r)
@@ -172,21 +101,11 @@ func (*ArticlesController) Edit(w http.ResponseWriter, r *http.Request) {
 
 	// 3. 如果出现错误
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// 3.1 数据未找到
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(w, "404 文章未找到")
-		} else {
-			// 3.2 数据库错误
-			logger.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "500 服务器内部错误")
-		}
+		ac.ResponseForSQLError(w, err)
 	} else {
 		// 检查权限
 		if !policies.CanModifyArticle(_article) {
-			flash.Warning("未授权操作！")
-			http.Redirect(w, r, "/", http.StatusFound)
+			ac.ResponseForUnauthorized(w, r)
 		} else {
 			// 4. 读取成功，显示编辑文章表单
 			view.Render(w, view.D{
@@ -198,7 +117,7 @@ func (*ArticlesController) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update 更新文章
-func (*ArticlesController) Update(w http.ResponseWriter, r *http.Request) {
+func (ac *ArticlesController) Update(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 获取 URL 参数
 	id := route.GetRouteVariable("id", r)
@@ -208,23 +127,13 @@ func (*ArticlesController) Update(w http.ResponseWriter, r *http.Request) {
 
 	// 3. 如果出现错误
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// 3.1 数据未找到
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(w, "404 文章未找到")
-		} else {
-			// 3.2 数据库错误
-			logger.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "500 服务器内部错误")
-		}
+		ac.ResponseForSQLError(w, err)
 	} else {
 		// 4. 未出现错误
 
 		// 检查权限
 		if !policies.CanModifyArticle(_article) {
-			flash.Warning("未授权操作！")
-			http.Redirect(w, r, "/", http.StatusForbidden)
+			ac.ResponseForUnauthorized(w, r)
 		} else {
 			// 4.1 表单验证
 			_article.Title = r.PostFormValue("title")
@@ -262,7 +171,7 @@ func (*ArticlesController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (*ArticlesController) Delete(w http.ResponseWriter, r *http.Request) {
+func (ac *ArticlesController) Delete(w http.ResponseWriter, r *http.Request) {
 	// 1. 获取 URL 参数
 	id := route.GetRouteVariable("id", r)
 
@@ -271,16 +180,7 @@ func (*ArticlesController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// 3. 如果出现错误
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// 3.1 数据未找到
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(w, "404 文章未找到")
-		} else {
-			// 3.2 数据错误
-			logger.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "500 服务器内部错误")
-		}
+		ac.ResponseForSQLError(w, err)
 	} else {
 
 		// 检查权限
